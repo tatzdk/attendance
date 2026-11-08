@@ -82,6 +82,15 @@
   .refresh { margin: 22px auto 0; display: block; background: none; border: 1px solid var(--line); color: var(--ink);
              padding: .5rem 1.1rem; border-radius: 8px; cursor: pointer; }
 
+  /* โหมดอาจารย์ */
+  .admin { margin: 0 0 18px; padding: 12px 14px; border-radius: 10px; background: var(--paper); border: 1px dashed var(--leave); }
+  .admin p { margin: 0 0 8px; font-size: .875rem; color: var(--leave); font-weight: 600; }
+  .admin form { display: flex; gap: 8px; }
+  .admin input { flex: 1; min-width: 0; font: inherit; padding: .45rem .7rem; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  .admin button { border: 0; border-radius: 8px; padding: .45rem .9rem; background: var(--leave); color: #fff; font-weight: 600; cursor: pointer; }
+  .admin .mine { margin-top: 8px; background: none; color: var(--leave); padding: 0; font-weight: 500; font-size: .875rem; text-decoration: underline; }
+  .uid { margin-top: 18px; font-size: .75rem; color: var(--muted); word-break: break-all; user-select: all; }
+
   .state { margin-top: 30vh; text-align: center; }
   .state p { color: var(--muted); }
   .state a { display: inline-block; margin-top: 8px; background: var(--present); color: #fff; text-decoration: none; padding: .6rem 1.2rem; border-radius: 8px; font-weight: 600; }
@@ -104,15 +113,45 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const thDate = (d, opt) => new Date(d + 'T12:00:00+07:00').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', ...opt });
 
-  function showState(msg, link) {
-    app.innerHTML = `<div class="state"><p>${msg}</p>${link ? `<a href="${link.href}">${link.text}</a>` : ''}</div>`;
+  // sid = รหัสนักศึกษาที่อาจารย์ต้องการดู (ใช้ได้เฉพาะ UID ที่อยู่ใน ADMIN_UIDS)
+  let sid = new URLSearchParams(location.search).get('sid') || '';
+  let isAdmin = false;
+
+  function adminBar(previewOf) {
+    if (!isAdmin) return '';
+    return `<div class="admin">
+      <p>${previewOf ? 'โหมดอาจารย์: กำลังดูหน้าจอของ ' + esc(previewOf) : 'โหมดอาจารย์'}</p>
+      <form id="adminForm">
+        <input id="sidInput" inputmode="numeric" placeholder="รหัสนักศึกษา" value="${esc(previewOf || '')}" aria-label="รหัสนักศึกษา">
+        <button type="submit">ดู</button>
+      </form>
+      ${previewOf ? '<button type="button" class="mine" id="mine">กลับไปข้อมูลของฉัน</button>' : ''}
+    </div>`;
+  }
+
+  function bindAdmin() {
+    const f = document.getElementById('adminForm');
+    if (f) f.onsubmit = e => { e.preventDefault(); reload(document.getElementById('sidInput').value.trim()); };
+    const m = document.getElementById('mine');
+    if (m) m.onclick = () => reload('');
+  }
+
+  function reload(newSid) {
+    sid = String(newSid || '').replace(/\D/g, '');
+    showState('กำลังโหลดข้อมูลการเข้าเรียน…');
+    load().catch(err => showState('โหลดข้อมูลไม่สำเร็จ: ' + esc(err.message)));
+  }
+
+  function showState(msg, link, extra) {
+    app.innerHTML = `${adminBar(sid)}<div class="state"><p>${msg}</p>${link ? `<a href="${link.href}">${link.text}</a>` : ''}${extra || ''}</div>`;
+    bindAdmin();
   }
 
   async function load() {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // กัน CORS preflight
-      body: JSON.stringify({ action: 'myAttendance', idToken: liff.getIDToken() })
+      body: JSON.stringify({ action: 'myAttendance', idToken: liff.getIDToken(), sid: sid })
     });
     const data = await res.json();
 
@@ -124,18 +163,22 @@
       return showState(esc(data.message));
     }
     sessionStorage.removeItem('relogin');
+    isAdmin = !!data.isAdmin;
+    const uidLine = data.uid ? `<p class="uid">UID ของบัญชีนี้: ${esc(data.uid)}</p>` : '';
 
     if (data.status === 'not_registered') {
-      return showState('บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับรายวิชา CA 2301', { href: REGISTER_URL, text: 'ลงทะเบียนบัญชี LINE' });
+      return showState('บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับรายวิชา CA 2301', { href: REGISTER_URL, text: 'ลงทะเบียนบัญชี LINE' }, uidLine);
     }
-    if (data.status === 'not_enrolled') return showState(esc(data.message));
+    if (data.status === 'not_enrolled') return showState(esc(data.message), null, uidLine);
+    if (data.status === 'not_found') return showState(esc(data.message));
     if (!data.ok || data.status !== 'found') {
       return showState(esc(data.message || 'โหลดข้อมูลไม่สำเร็จ') + '<br>ลองกดรีเฟรชอีกครั้ง หรือแจ้งอาจารย์ผู้สอน');
     }
     render(data);
   }
 
-  function render({ student, current, weeks, summary }) {
+  function render(data) {
+    const { student, current, weeks, summary } = data;
     let slate;
     if (!current) {
       slate = `<p class="when">ยังไม่ถึงสัปดาห์แรกของการเรียน</p><p class="time none">--:--</p>`;
@@ -169,6 +212,7 @@
     const leaveText = summary.leave ? `, ลา ${summary.leave} (นับเป็นขาด)` : '';
 
     app.innerHTML = `
+      ${adminBar(data.previewOf)}
       <header>
         <p>CA 2301 การผลิตสื่อวีดิโอสำหรับแพลตฟอร์มออนไลน์</p>
         <h1>${esc(student.name)}</h1>
@@ -204,10 +248,8 @@
 
       <button class="refresh" id="refresh">รีเฟรชข้อมูล</button>`;
 
-    document.getElementById('refresh').onclick = () => {
-      showState('กำลังโหลดข้อมูลการเข้าเรียน…');
-      load().catch(err => showState('โหลดข้อมูลไม่สำเร็จ: ' + esc(err.message)));
-    };
+    document.getElementById('refresh').onclick = () => reload(sid);
+    bindAdmin();
   }
 
   (async () => {
