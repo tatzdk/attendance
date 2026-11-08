@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>สถานะการเข้าเรียน CA 2301</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js" charset="utf-8"></script>
+<style>
+  :root {
+    --bg: #E7EDEA; --paper: #FFFFFF; --ink: #1E2B33; --muted: #5D6D74; --line: #CBD5D1;
+    --film: #24313A; --hole: #E7EDEA; --frame-empty: #3A4851; --on-film: #FFFFFF;
+    --present: #2E7D5B; --late: #B87F0C; --absent: #B5443A; --leave: #6B63A8; --pending: #6F8087;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141B1F; --paper: #1D262B; --ink: #E6ECEA; --muted: #9AA9AF; --line: #2F3B41;
+      --film: #0D1316; --hole: #141B1F; --frame-empty: #27333A; --on-film: #E6ECEA;
+      --present: #3E9C72; --late: #C9922A; --absent: #C95A4E; --leave: #8A82C4; --pending: #7D8E95;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'IBM Plex Sans Thai', 'Noto Sans Thai', system-ui, -apple-system, sans-serif;
+    line-height: 1.55;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 18px calc(env(safe-area-inset-bottom, 0px) + 32px);
+  }
+  main { max-width: 480px; margin: 0 auto; }
+  .num { font-variant-numeric: tabular-nums; }
+  button { font: inherit; }
+  :focus-visible { outline: 2px solid var(--present); outline-offset: 2px; }
+
+  header p { margin: 0; color: var(--muted); font-size: .875rem; }
+  header h1 { margin: .15rem 0; font-size: 1.375rem; font-weight: 600; line-height: 1.3; }
+
+  /* สเลตบอกเวลาเช็คชื่อสัปดาห์นี้ */
+  .slate { margin-top: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .slate-bar { height: 12px; background: repeating-linear-gradient(-45deg, var(--film) 0 12px, var(--paper) 12px 24px); }
+  .slate-body { padding: 16px 18px 20px; }
+  .slate .when { margin: 0; color: var(--muted); font-size: .9375rem; }
+  .slate .time { margin: .3rem 0 .6rem; font-size: 3.25rem; font-weight: 700; line-height: 1.1; letter-spacing: .01em; }
+  .slate .time.none { font-size: 2rem; color: var(--muted); }
+  .slate .note { margin: .7rem 0 0; color: var(--muted); font-size: .875rem; }
+
+  .tag { display: inline-block; padding: .15rem .65rem; border-radius: 6px; font-weight: 600; font-size: .9375rem; color: #fff; }
+  .st-present { background: var(--present); } .st-late { background: var(--late); }
+  .st-absent { background: var(--absent); } .st-leave { background: var(--leave); }
+  .st-pending { background: var(--pending); }
+
+  /* แถบฟิล์มรายสัปดาห์ */
+  .strip-head { display: flex; justify-content: space-between; align-items: baseline; margin: 28px 0 2px; }
+  .strip-head h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+  .pct { font-size: 1.875rem; font-weight: 700; }
+  .counts { margin: 0 0 10px; color: var(--muted); font-size: .875rem; }
+  .strip { background: var(--film); border-radius: 6px; padding: 4px 8px; overflow-x: auto; }
+  .holes { height: 6px; margin: 4px 0; background: repeating-linear-gradient(90deg, var(--hole) 0 7px, transparent 7px 15px); opacity: .55; }
+  .frames { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(24px, 1fr); gap: 4px; }
+  .frame { aspect-ratio: 3 / 4; border-radius: 2px; display: grid; place-items: end center;
+           font-size: .6875rem; color: var(--on-film); padding-bottom: 2px; background: var(--frame-empty); }
+  .frame.is-now { box-shadow: 0 0 0 2px var(--on-film); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; padding: 0; list-style: none; font-size: .8125rem; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+  /* ประวัติรายสัปดาห์ */
+  .history { margin: 28px 0 0; }
+  .history h2 { margin: 0 0 6px; font-size: 1rem; font-weight: 600; }
+  .history ul { list-style: none; margin: 0; padding: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+  .history li { display: grid; grid-template-columns: 4.4rem 1fr auto; gap: 8px; align-items: center; padding: 11px 14px; border-top: 1px solid var(--line); font-size: .9375rem; }
+  .history li:first-child { border-top: 0; }
+  .history .wk { font-weight: 600; }
+  .history .d small { display: block; color: var(--muted); font-size: .8125rem; }
+  .history .s { font-weight: 600; }
+  .txt-present { color: var(--present); } .txt-late { color: var(--late); }
+  .txt-absent { color: var(--absent); } .txt-leave { color: var(--leave); } .txt-pending { color: var(--pending); }
+
+  .refresh { margin: 22px auto 0; display: block; background: none; border: 1px solid var(--line); color: var(--ink);
+             padding: .5rem 1.1rem; border-radius: 8px; cursor: pointer; }
+
+  .state { margin-top: 30vh; text-align: center; }
+  .state p { color: var(--muted); }
+  .state a { display: inline-block; margin-top: 8px; background: var(--present); color: #fff; text-decoration: none; padding: .6rem 1.2rem; border-radius: 8px; font-weight: 600; }
+</style>
+</head>
+<body>
+<main id="app"><div class="state"><p>กำลังโหลดข้อมูลการเข้าเรียน…</p></div></main>
+
+<script>
+  // ===== ตั้งค่า =====
+  const LIFF_ID = 'ใส่_LIFF_ID';
+  const API_URL = 'ใส่_URL_exec_ตัวเดียวกับหน้า_download';
+  const REGISTER_URL = 'ใส่ลิงก์หน้าลงทะเบียน_LINE';
+
+  // มา / สาย / ขาด / ลา... / รอเช็คชื่อ
+  const cls = s => s === 'มา' ? 'present' : s === 'สาย' ? 'late'
+                 : String(s).indexOf('ลา') === 0 ? 'leave'
+                 : s === 'รอเช็คชื่อ' ? 'pending' : 'absent';
+  const app = document.getElementById('app');
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const thDate = (d, opt) => new Date(d + 'T12:00:00+07:00').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', ...opt });
+
+  function showState(msg, link) {
+    app.innerHTML = `<div class="state"><p>${msg}</p>${link ? `<a href="${link.href}">${link.text}</a>` : ''}</div>`;
+  }
+
+  async function load() {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // กัน CORS preflight
+      body: JSON.stringify({ action: 'myAttendance', idToken: liff.getIDToken() })
+    });
+    const data = await res.json();
+
+    if (data.status === 'auth') {
+      if (!sessionStorage.getItem('relogin')) {        // token หมดอายุ: ล็อกอินใหม่หนึ่งครั้ง
+        sessionStorage.setItem('relogin', '1');
+        liff.logout(); liff.login({ redirectUri: location.href }); return;
+      }
+      return showState(esc(data.message));
+    }
+    sessionStorage.removeItem('relogin');
+
+    if (data.status === 'not_registered') {
+      return showState('บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับรายวิชา CA 2301', { href: REGISTER_URL, text: 'ลงทะเบียนบัญชี LINE' });
+    }
+    if (data.status === 'not_enrolled') return showState(esc(data.message));
+    if (!data.ok || data.status !== 'found') {
+      return showState(esc(data.message || 'โหลดข้อมูลไม่สำเร็จ') + '<br>ลองกดรีเฟรชอีกครั้ง หรือแจ้งอาจารย์ผู้สอน');
+    }
+    render(data);
+  }
+
+  function render({ student, current, weeks, summary }) {
+    let slate;
+    if (!current) {
+      slate = `<p class="when">ยังไม่ถึงสัปดาห์แรกของการเรียน</p><p class="time none">--:--</p>`;
+    } else {
+      const note = current.status === 'รอเช็คชื่อ'
+        ? `คาบเริ่ม ${current.start} น. สแกนบัตรที่หน้าห้องเพื่อเช็คชื่อ`
+        : current.checkin
+          ? `คาบเริ่ม ${current.start} น.`
+          : 'ไม่พบเวลาเช็คชื่อในสัปดาห์นี้ หากข้อมูลไม่ถูกต้องให้แจ้งอาจารย์ผู้สอน';
+      slate = `<p class="when">สัปดาห์ที่ ${current.week}, ${thDate(current.date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+               <p class="time num ${current.checkin ? '' : 'none'}">${current.checkin || 'ไม่มีเวลาเช็คชื่อ'}</p>
+               <span class="tag st-${cls(current.status)}">${esc(current.status)}</span>
+               <p class="note">${note}</p>`;
+    }
+
+    const frames = weeks.map(w => {
+      const c = w.status === 'future' ? '' : 'st-' + cls(w.status);
+      const now = current && w.week === current.week ? 'is-now' : '';
+      const title = w.status === 'future' ? 'ยังไม่ถึง' : w.status;
+      return `<div class="frame ${c} ${now}" title="สัปดาห์ที่ ${w.week}: ${esc(title)}"><span class="num">${w.week}</span></div>`;
+    }).join('');
+
+    const rows = weeks.filter(w => w.status !== 'future').reverse().map(w => `
+      <li>
+        <span class="wk">สัปดาห์ ${w.week}</span>
+        <span class="d">${thDate(w.date, { day: 'numeric', month: 'short' })}
+          <small class="num">${w.checkin ? 'เช็คชื่อ ' + w.checkin + ' น.' : 'ไม่มีเวลาเช็คชื่อ'}</small></span>
+        <span class="s txt-${cls(w.status)}">${esc(w.status)}</span>
+      </li>`).join('');
+
+    const leaveText = summary.leave ? `, ลา ${summary.leave} (นับเป็นขาด)` : '';
+
+    app.innerHTML = `
+      <header>
+        <p>CA 2301 การผลิตสื่อวีดิโอสำหรับแพลตฟอร์มออนไลน์</p>
+        <h1>${esc(student.name)}</h1>
+        <p class="num">${esc(student.id)}, ${esc(student.section)}</p>
+      </header>
+
+      <section class="slate" aria-label="การเช็คชื่อสัปดาห์นี้">
+        <div class="slate-bar"></div>
+        <div class="slate-body">${slate}</div>
+      </section>
+
+      <section aria-label="สัดส่วนการเข้าเรียน">
+        <div class="strip-head">
+          <h2>เข้าเรียนถึงสัปดาห์นี้</h2>
+          <span class="pct num">${summary.percent == null ? '–' : summary.percent + '%'}</span>
+        </div>
+        <p class="counts num">มา ${summary.present}, สาย ${summary.late}, ขาด ${summary.absent}${leaveText} จากที่เรียนไปแล้ว ${summary.held} ครั้ง (ทั้งเทอม ${summary.total} สัปดาห์)</p>
+        <div class="strip">
+          <div class="holes"></div>
+          <div class="frames">${frames}</div>
+          <div class="holes"></div>
+        </div>
+        <ul class="legend">
+          <li><i style="background:var(--present)"></i>มา</li>
+          <li><i style="background:var(--late)"></i>สาย</li>
+          <li><i style="background:var(--absent)"></i>ขาด</li>
+          <li><i style="background:var(--leave)"></i>ลา</li>
+          <li><i style="background:var(--frame-empty)"></i>ยังไม่ถึง</li>
+        </ul>
+      </section>
+
+      ${rows ? `<section class="history"><h2>รายสัปดาห์</h2><ul>${rows}</ul></section>` : ''}
+
+      <button class="refresh" id="refresh">รีเฟรชข้อมูล</button>`;
+
+    document.getElementById('refresh').onclick = () => {
+      showState('กำลังโหลดข้อมูลการเข้าเรียน…');
+      load().catch(err => showState('โหลดข้อมูลไม่สำเร็จ: ' + esc(err.message)));
+    };
+  }
+
+  (async () => {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+      await load();
+    } catch (err) {
+      showState('เปิดหน้าไม่สำเร็จ: ' + esc(err.message) + '<br>กรุณาเปิดจากลิงก์ใน LINE');
+    }
+  })();
+</script>
+</body>
+</html>
