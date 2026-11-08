@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>สถานะการเข้าเรียน CA 2301</title>
+<title>CA 2301 การเข้าเรียนและคะแนน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,6 +13,7 @@
     --bg: #E7EDEA; --paper: #FFFFFF; --ink: #1E2B33; --muted: #5D6D74; --line: #CBD5D1;
     --film: #24313A; --hole: #E7EDEA; --frame-empty: #3A4851; --on-film: #FFFFFF;
     --present: #2E7D5B; --late: #B87F0C; --absent: #B5443A; --leave: #6B63A8; --pending: #6F8087;
+    --track: #D5DEDA;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -20,6 +21,7 @@
       --bg: #141B1F; --paper: #1D262B; --ink: #E6ECEA; --muted: #9AA9AF; --line: #2F3B41;
       --film: #0D1316; --hole: #141B1F; --frame-empty: #27333A; --on-film: #E6ECEA;
       --present: #3E9C72; --late: #C9922A; --absent: #C95A4E; --leave: #8A82C4; --pending: #7D8E95;
+      --track: #2A363C;
       color-scheme: dark;
     }
   }
@@ -39,7 +41,14 @@
   header p { margin: 0; color: var(--muted); font-size: .875rem; }
   header h1 { margin: .15rem 0; font-size: 1.375rem; font-weight: 600; line-height: 1.3; }
 
-  /* สเลตบอกเวลาเช็คชื่อสัปดาห์นี้ */
+  /* แท็บ */
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; margin: 18px 0 0; border-bottom: 1px solid var(--line); }
+  .tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: .55rem 0 .5rem;
+                 color: var(--muted); font-weight: 600; cursor: pointer; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  .panel-loading { text-align: center; color: var(--muted); margin: 15vh 0; }
+
+  /* สเลตบอกเวลาเช็คชื่อ */
   .slate { margin-top: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
   .slate-bar { height: 12px; background: repeating-linear-gradient(-45deg, var(--film) 0 12px, var(--paper) 12px 24px); }
   .slate-body { padding: 16px 18px 20px; }
@@ -53,7 +62,7 @@
   .st-absent { background: var(--absent); } .st-leave { background: var(--leave); }
   .st-pending { background: var(--pending); }
 
-  /* แถบฟิล์มรายสัปดาห์ */
+  /* แถบฟิล์ม */
   .strip-head { display: flex; justify-content: space-between; align-items: baseline; margin: 28px 0 2px; }
   .strip-head h2 { margin: 0; font-size: 1rem; font-weight: 600; }
   .pct { font-size: 1.875rem; font-weight: 700; }
@@ -79,8 +88,58 @@
   .txt-present { color: var(--present); } .txt-late { color: var(--late); }
   .txt-absent { color: var(--absent); } .txt-leave { color: var(--leave); } .txt-pending { color: var(--pending); }
 
-  .refresh { margin: 22px auto 0; display: block; background: none; border: 1px solid var(--line); color: var(--ink);
-             padding: .5rem 1.1rem; border-radius: 8px; cursor: pointer; }
+  /* คะแนน: สรุป */
+  .score-sum { margin-top: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px 18px; }
+  .score-sum .big { font-size: 3rem; font-weight: 700; line-height: 1.1; margin: .1rem 0 .2rem; }
+  .score-sum p { margin: 0; color: var(--muted); font-size: .875rem; }
+  .bar { position: relative; height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; margin: 12px 0 6px; }
+  .bar span { position: absolute; inset: 0 auto 0 0; border-radius: 5px; }
+  .bar .rel { background: var(--pending); opacity: .45; }
+  .bar .got { background: var(--present); }
+  .bar-legend { display: flex; gap: 14px; font-size: .8125rem; color: var(--muted); }
+  .bar-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+  .group-card { margin-top: 14px; font-size: .875rem; color: var(--muted); }
+  .group-card strong { color: var(--ink); font-weight: 600; }
+
+  /* คะแนน: Accordion */
+  .cats { margin-top: 20px; display: grid; gap: 10px; }
+  details.cat { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  details.cat > summary { list-style: none; cursor: pointer; padding: 14px 16px; display: grid;
+                          grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+  details.cat > summary::-webkit-details-marker { display: none; }
+  .cat-title { font-weight: 600; }
+  .cat-score { font-weight: 700; text-align: right; }
+  .cat-meta { font-size: .8125rem; color: var(--muted); }
+  .cat-chev { font-size: .8125rem; color: var(--muted); text-align: right; }
+  details.cat[open] .cat-chev::after { content: "ซ่อน"; }
+  details.cat:not([open]) .cat-chev::after { content: "ดูรายละเอียด"; }
+  .cat .mini { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; margin-top: 6px; }
+  .cat .mini span { display: block; height: 100%; background: var(--present); }
+  .warn { color: var(--absent); font-weight: 600; }
+
+  .items { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .item { padding: 12px 16px; border-top: 1px solid var(--line); }
+  .item:first-child { border-top: 0; }
+  .item-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .item-title { font-weight: 600; }
+  .item-title small { color: var(--muted); font-weight: 500; margin-right: 4px; }
+  .item-score { font-weight: 700; white-space: nowrap; }
+  .item-line { margin: 3px 0 0; font-size: .8125rem; color: var(--muted); }
+  .chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .05rem .5rem; border-radius: 5px; color: #fff; margin-right: 6px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .btn { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px; padding: .35rem .8rem; font-size: .875rem; cursor: pointer; }
+  .btn.primary { background: var(--present); border-color: var(--present); color: #fff; font-weight: 600; }
+  .empty { padding: 12px 16px; color: var(--muted); font-size: .875rem; border-top: 1px solid var(--line); margin: 0; }
+
+  /* PDF viewer */
+  .viewer { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: flex; flex-direction: column;
+            padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .viewer-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--paper); border-bottom: 1px solid var(--line); }
+  .viewer-bar strong { flex: 1; font-size: .9375rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .viewer-pages { flex: 1; overflow: auto; padding: 12px; }
+  .viewer-pages canvas { display: block; width: 100%; height: auto; margin: 0 auto 12px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .viewer-msg { text-align: center; color: var(--muted); margin-top: 20vh; }
 
   /* โหมดอาจารย์ */
   .admin { margin: 0 0 18px; padding: 12px 14px; border-radius: 10px; background: var(--paper); border: 1px dashed var(--leave); }
@@ -91,32 +150,62 @@
   .admin .mine { margin-top: 8px; background: none; color: var(--leave); padding: 0; font-weight: 500; font-size: .875rem; text-decoration: underline; }
   .uid { margin-top: 18px; font-size: .75rem; color: var(--muted); word-break: break-all; user-select: all; }
 
+  .refresh { margin: 22px auto 0; display: block; background: none; border: 1px solid var(--line); color: var(--ink);
+             padding: .5rem 1.1rem; border-radius: 8px; cursor: pointer; }
   .state { margin-top: 30vh; text-align: center; }
   .state p { color: var(--muted); }
   .state a { display: inline-block; margin-top: 8px; background: var(--present); color: #fff; text-decoration: none; padding: .6rem 1.2rem; border-radius: 8px; font-weight: 600; }
 </style>
 </head>
 <body>
-<main id="app"><div class="state"><p>กำลังโหลดข้อมูลการเข้าเรียน…</p></div></main>
+<main id="app"><div class="state"><p>กำลังโหลดข้อมูล…</p></div></main>
 
 <script>
   // ===== ตั้งค่า =====
   const LIFF_ID = '2012469188-T7oFRrPY';
   const API_URL = 'https://script.google.com/macros/s/AKfycbzcC4IwKcmyMsWZiwJy3PvqQU6mv39ZIX_xABldl8G-nLh2CUsWZV5i0eWkPvscZ-zJ/exec';
   const REGISTER_URL = 'https://liff.line.me/2012469188-T7oFRrPY';
+  const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 
-  // มา / สาย / ขาด / ลา... / รอเช็คชื่อ
-  const cls = s => s === 'มา' ? 'present' : s === 'สาย' ? 'late'
-                 : String(s).indexOf('ลา') === 0 ? 'leave'
-                 : s === 'รอเช็คชื่อ' ? 'pending' : 'absent';
   const app = document.getElementById('app');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const thDate = (d, opt) => new Date(d + 'T12:00:00+07:00').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', ...opt });
+  const thDateTime = s => { const [d, t] = s.split(' '); return thDate(d, { day: 'numeric', month: 'short' }) + ' ' + t + ' น.'; };
+  const fmtNum = n => (Math.round(n * 100) / 100).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+  const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+  const cls = s => s === 'มา' ? 'present' : s === 'สาย' ? 'late'
+                 : String(s).indexOf('ลา') === 0 ? 'leave'
+                 : s === 'รอเช็คชื่อ' ? 'pending' : 'absent';
 
-  // sid = รหัสนักศึกษาที่อาจารย์ต้องการดู (ใช้ได้เฉพาะ UID ที่อยู่ใน ADMIN_UIDS)
+  // สถานะของหน้า
   let sid = new URLSearchParams(location.search).get('sid') || '';
+  let tab = new URLSearchParams(location.search).get('tab') === 'scores' ? 'scores' : 'attendance';
   let isAdmin = false;
+  let showScores = false;   // มาจาก CONFIG.SHOW_SCORES ใน Code.gs
+  let attendance = null, scores = null;
 
+  // ===== เรียก API =====
+  async function api(action, extra) {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // กัน CORS preflight
+      body: JSON.stringify(Object.assign({ action, idToken: liff.getIDToken(), sid }, extra || {}))
+    });
+    const data = await res.json();
+    if (data.status === 'auth') {
+      if (!sessionStorage.getItem('relogin')) {
+        sessionStorage.setItem('relogin', '1');
+        liff.logout(); liff.login({ redirectUri: location.href });
+        return new Promise(() => {});
+      }
+    } else {
+      sessionStorage.removeItem('relogin');
+    }
+    if (typeof data.isAdmin === 'boolean') isAdmin = data.isAdmin;
+    return data;
+  }
+
+  // ===== โหมดอาจารย์ =====
   function adminBar(previewOf) {
     if (!isAdmin) return '';
     return `<div class="admin">
@@ -128,7 +217,6 @@
       ${previewOf ? '<button type="button" class="mine" id="mine">กลับไปข้อมูลของฉัน</button>' : ''}
     </div>`;
   }
-
   function bindAdmin() {
     const f = document.getElementById('adminForm');
     if (f) f.onsubmit = e => { e.preventDefault(); reload(document.getElementById('sidInput').value.trim()); };
@@ -136,71 +224,110 @@
     if (m) m.onclick = () => reload('');
   }
 
-  function reload(newSid) {
-    sid = String(newSid || '').replace(/\D/g, '');
-    showState('กำลังโหลดข้อมูลการเข้าเรียน…');
-    load().catch(err => showState('โหลดข้อมูลไม่สำเร็จ: ' + esc(err.message)));
-  }
-
   function showState(msg, link, extra) {
     app.innerHTML = `${adminBar(sid)}<div class="state"><p>${msg}</p>${link ? `<a href="${link.href}">${link.text}</a>` : ''}${extra || ''}</div>`;
     bindAdmin();
   }
 
-  async function load() {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // กัน CORS preflight
-      body: JSON.stringify({ action: 'myAttendance', idToken: liff.getIDToken(), sid: sid })
-    });
-    const data = await res.json();
-
-    if (data.status === 'auth') {
-      if (!sessionStorage.getItem('relogin')) {        // token หมดอายุ: ล็อกอินใหม่หนึ่งครั้ง
-        sessionStorage.setItem('relogin', '1');
-        liff.logout(); liff.login({ redirectUri: location.href }); return;
-      }
-      return showState(esc(data.message));
-    }
-    sessionStorage.removeItem('relogin');
-    isAdmin = !!data.isAdmin;
+  // ข้อความกรณีหาไม่พบ/ยังไม่ลงทะเบียน (ใช้ร่วมกันทั้งสองแท็บ)
+  function handleStatus(data) {
     const uidLine = data.uid ? `<p class="uid">UID ของบัญชีนี้: ${esc(data.uid)}</p>` : '';
-
+    if (data.status === 'auth') { showState(esc(data.message)); return false; }
     if (data.status === 'not_registered') {
-      return showState('บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับรายวิชา CA 2301', { href: REGISTER_URL, text: 'ลงทะเบียนบัญชี LINE' }, uidLine);
+      showState('บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับรายวิชา CA 2301', { href: REGISTER_URL, text: 'ลงทะเบียนบัญชี LINE' }, uidLine);
+      return false;
     }
-    if (data.status === 'not_enrolled') return showState(esc(data.message), null, uidLine);
-    if (data.status === 'not_found') return showState(esc(data.message));
+    if (data.status === 'not_enrolled') { showState(esc(data.message), null, uidLine); return false; }
+    if (data.status === 'not_found') { showState(esc(data.message)); return false; }
     if (!data.ok || data.status !== 'found') {
-      return showState(esc(data.message || 'โหลดข้อมูลไม่สำเร็จ') + '<br>ลองกดรีเฟรชอีกครั้ง หรือแจ้งอาจารย์ผู้สอน');
+      showState(esc(data.message || 'โหลดข้อมูลไม่สำเร็จ') + '<br>ลองกดรีเฟรชอีกครั้ง หรือแจ้งอาจารย์ผู้สอน');
+      return false;
     }
-    render(data);
+    return true;
   }
 
-  function render(data) {
-    const { student, current, weeks, summary } = data;
+  async function reload(newSid) {
+    if (newSid !== undefined) sid = String(newSid || '').replace(/\D/g, '');
+    attendance = null; scores = null;
+    showState('กำลังโหลดข้อมูล…');
+    try {
+      const data = await api('myAttendance');
+      if (!handleStatus(data)) return;
+      attendance = data;
+      showScores = !!data.showScores;
+      renderShell();
+    } catch (err) { showState('โหลดข้อมูลไม่สำเร็จ: ' + esc(err.message)); }
+  }
+
+  // ===== โครงหน้า + แท็บ =====
+  function renderShell() {
+    const st = attendance.student;
+    app.innerHTML = `
+      ${adminBar(attendance.previewOf)}
+      <header>
+        <p>CA 2301 การผลิตสื่อวีดิโอสำหรับแพลตฟอร์มออนไลน์</p>
+        <h1>${esc(st.name)}</h1>
+        <p class="num">${esc(st.id)}, ${esc(st.section)}</p>
+      </header>
+      <nav class="tabs" role="tablist">
+        <button role="tab" id="tab-attendance" aria-selected="${tab === 'attendance'}">การเข้าเรียน</button>
+        <button role="tab" id="tab-scores" aria-selected="${tab === 'scores'}">${showScores ? 'งานและคะแนน' : 'การส่งงาน'}</button>
+      </nav>
+      <div id="panel" role="tabpanel"></div>
+      <button class="refresh" id="refresh">รีเฟรชข้อมูล</button>`;
+    bindAdmin();
+    document.getElementById('tab-attendance').onclick = () => switchTab('attendance');
+    document.getElementById('tab-scores').onclick = () => switchTab('scores');
+    document.getElementById('refresh').onclick = () => reload();
+    switchTab(tab);
+  }
+
+  async function switchTab(name) {
+    tab = name;
+    document.getElementById('tab-attendance').setAttribute('aria-selected', name === 'attendance');
+    document.getElementById('tab-scores').setAttribute('aria-selected', name === 'scores');
+    const panel = document.getElementById('panel');
+    if (name === 'attendance') { panel.innerHTML = attendanceHTML(attendance); return; }
+    if (!scores) {
+      panel.innerHTML = '<p class="panel-loading">กำลังโหลดข้อมูลงาน…</p>';
+      try {
+        const data = await api('myScores');
+        if (!data.ok || data.status !== 'found') {
+          panel.innerHTML = `<p class="panel-loading">${esc(data.message || 'โหลดคะแนนไม่สำเร็จ')}</p>`;
+          return;
+        }
+        scores = data;
+      } catch (err) {
+        panel.innerHTML = `<p class="panel-loading">โหลดคะแนนไม่สำเร็จ: ${esc(err.message)}</p>`;
+        return;
+      }
+      if (tab !== 'scores') return;
+    }
+    panel.innerHTML = scoresHTML(scores);
+    bindScoreActions(panel);
+  }
+
+  // ===== แท็บการเข้าเรียน =====
+  function attendanceHTML({ current, weeks, summary }) {
     let slate;
     if (!current) {
       slate = `<p class="when">ยังไม่ถึงสัปดาห์แรกของการเรียน</p><p class="time none">--:--</p>`;
     } else {
       const note = current.status === 'รอเช็คชื่อ'
         ? `คาบเริ่ม ${current.start} น. สแกนบัตรที่หน้าห้องเพื่อเช็คชื่อ`
-        : current.checkin
-          ? `คาบเริ่ม ${current.start} น.`
-          : 'ไม่พบเวลาเช็คชื่อในสัปดาห์นี้ หากข้อมูลไม่ถูกต้องให้แจ้งอาจารย์ผู้สอน';
+        : current.checkin ? `คาบเริ่ม ${current.start} น.`
+        : 'ไม่พบเวลาเช็คชื่อในสัปดาห์นี้ หากข้อมูลไม่ถูกต้องให้แจ้งอาจารย์ผู้สอน';
       slate = `<p class="when">สัปดาห์ที่ ${current.week}, ${thDate(current.date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                <p class="time num ${current.checkin ? '' : 'none'}">${current.checkin || 'ไม่มีเวลาเช็คชื่อ'}</p>
                <span class="tag st-${cls(current.status)}">${esc(current.status)}</span>
                <p class="note">${note}</p>`;
     }
-
     const frames = weeks.map(w => {
       const c = w.status === 'future' ? '' : 'st-' + cls(w.status);
       const now = current && w.week === current.week ? 'is-now' : '';
       const title = w.status === 'future' ? 'ยังไม่ถึง' : w.status;
       return `<div class="frame ${c} ${now}" title="สัปดาห์ที่ ${w.week}: ${esc(title)}"><span class="num">${w.week}</span></div>`;
     }).join('');
-
     const rows = weeks.filter(w => w.status !== 'future').reverse().map(w => `
       <li>
         <span class="wk">สัปดาห์ ${w.week}</span>
@@ -208,55 +335,199 @@
           <small class="num">${w.checkin ? 'เช็คชื่อ ' + w.checkin + ' น.' : 'ไม่มีเวลาเช็คชื่อ'}</small></span>
         <span class="s txt-${cls(w.status)}">${esc(w.status)}</span>
       </li>`).join('');
-
     const leaveText = summary.leave ? `, ลา ${summary.leave} (นับเป็นขาด)` : '';
-
-    app.innerHTML = `
-      ${adminBar(data.previewOf)}
-      <header>
-        <p>CA 2301 การผลิตสื่อวีดิโอสำหรับแพลตฟอร์มออนไลน์</p>
-        <h1>${esc(student.name)}</h1>
-        <p class="num">${esc(student.id)}, ${esc(student.section)}</p>
-      </header>
-
+    return `
       <section class="slate" aria-label="การเช็คชื่อสัปดาห์นี้">
-        <div class="slate-bar"></div>
-        <div class="slate-body">${slate}</div>
+        <div class="slate-bar"></div><div class="slate-body">${slate}</div>
       </section>
-
       <section aria-label="สัดส่วนการเข้าเรียน">
-        <div class="strip-head">
-          <h2>เข้าเรียนถึงสัปดาห์นี้</h2>
-          <span class="pct num">${summary.percent == null ? '–' : summary.percent + '%'}</span>
-        </div>
+        <div class="strip-head"><h2>เข้าเรียนถึงสัปดาห์นี้</h2>
+          <span class="pct num">${summary.percent == null ? '–' : summary.percent + '%'}</span></div>
         <p class="counts num">มา ${summary.present}, สาย ${summary.late}, ขาด ${summary.absent}${leaveText} จากที่เรียนไปแล้ว ${summary.held} ครั้ง (ทั้งเทอม ${summary.total} สัปดาห์)</p>
-        <div class="strip">
-          <div class="holes"></div>
-          <div class="frames">${frames}</div>
-          <div class="holes"></div>
-        </div>
+        <div class="strip"><div class="holes"></div><div class="frames">${frames}</div><div class="holes"></div></div>
         <ul class="legend">
-          <li><i style="background:var(--present)"></i>มา</li>
-          <li><i style="background:var(--late)"></i>สาย</li>
-          <li><i style="background:var(--absent)"></i>ขาด</li>
-          <li><i style="background:var(--leave)"></i>ลา</li>
+          <li><i style="background:var(--present)"></i>มา</li><li><i style="background:var(--late)"></i>สาย</li>
+          <li><i style="background:var(--absent)"></i>ขาด</li><li><i style="background:var(--leave)"></i>ลา</li>
           <li><i style="background:var(--frame-empty)"></i>ยังไม่ถึง</li>
         </ul>
       </section>
-
-      ${rows ? `<section class="history"><h2>รายสัปดาห์</h2><ul>${rows}</ul></section>` : ''}
-
-      <button class="refresh" id="refresh">รีเฟรชข้อมูล</button>`;
-
-    document.getElementById('refresh').onclick = () => reload(sid);
-    bindAdmin();
+      ${rows ? `<section class="history"><h2>รายสัปดาห์</h2><ul>${rows}</ul></section>` : ''}`;
   }
 
+  // ===== แท็บคะแนน =====
+  function itemHTML(it) {
+    // สถานะการส่ง
+    let chip = '', lines = [];
+    const sub = it.submission;
+    if (it.type !== 'exam') {
+      if (sub) {
+        chip = sub.late ? '<span class="chip st-late">ส่งช้า</span>' : '<span class="chip st-present">ส่งแล้ว</span>';
+        lines.push(`${chip}ส่งเมื่อ ${thDateTime(sub.at)}`);
+        lines.push(`ผู้ส่ง ${esc(sub.byName)} (${esc(sub.by)})`);
+        if (sub.choice) lines.push(`หัวข้อที่เลือกในฟอร์ม: ${esc(sub.choice)}`);
+        if (sub.file) {
+          lines.push(sub.file.error
+            ? `<span class="warn">${esc(sub.file.error)}</span>`
+            : `ไฟล์แนบ: ${esc(sub.file.name)} (${fmtSize(sub.file.size)})`);
+        }
+        if (sub.url) {
+          lines.push(`ลิงก์งาน: <span style="word-break:break-all">${esc(sub.url)}</span>`);
+        }
+      } else if (it.overdue) {
+        lines.push('<span class="chip st-absent">เลยกำหนด</span>ยังไม่พบงานที่ส่ง');
+      } else {
+        lines.push('<span class="chip st-pending">ยังไม่ส่ง</span>' + (it.due ? 'กำหนดส่ง ' + thDate(it.due, { day: 'numeric', month: 'short' }) : ''));
+      }
+      if (sub && it.due) lines.push('กำหนดส่ง ' + thDate(it.due, { day: 'numeric', month: 'short', year: 'numeric' }));
+    }
+
+    // คะแนน (ระยะที่ 2 เท่านั้น)
+    let score = '';
+    if (!showScores) {
+      // ระยะที่ 1: ไม่แสดงคะแนน
+    } else if (it.released && it.raw !== null) {
+      score = `${fmtNum(it.earned)}<small> / ${fmtNum(it.points)}</small>`;
+      lines.push(`ผลตรวจ ${it.grade ? 'เกรด ' + esc(it.grade) + ', ' : ''}${fmtNum(it.raw)}/${fmtNum(it.max)}`);
+    } else if (it.released) {
+      score = '<small>–</small>';
+      lines.push('ยังไม่มีคะแนนของงานนี้');
+    } else {
+      lines.push('รอประกาศคะแนน (' + fmtNum(it.points) + ' คะแนน)');
+    }
+
+    // ปุ่ม
+    const btns = [];
+    if (sub && sub.file && sub.file.isPdf && !sub.file.error) btns.push(`<button class="btn primary" data-pdf="${esc(it.id)}" data-title="${esc(it.title)}">ดู PDF</button>`);
+    if (sub && sub.url) btns.push(`<button class="btn" data-open="${esc(sub.url)}">เปิดลิงก์งาน</button>`);
+
+    return `<li class="item">
+      <div class="item-head">
+        <span class="item-title"><small>${esc(it.id)}</small>${esc(it.title)}</span>
+        <span class="item-score num">${score}</span>
+      </div>
+      ${lines.map(l => `<p class="item-line num">${l}</p>`).join('')}
+      ${btns.length ? `<div class="actions">${btns.join('')}</div>` : ''}
+    </li>`;
+  }
+
+  function scoresHTML({ summary, categories, group }) {
+    if (!showScores) {
+      // ระยะที่ 1: เฉพาะงานที่ต้องส่ง (ไม่รวมงานสอบ) และไม่มีตัวเลขคะแนน
+      categories = categories
+        .map(c => Object.assign({}, c, { items: c.items.filter(x => x.type !== 'exam') }))
+        .filter(c => c.items.length);
+    }
+    const pct = v => summary.total ? Math.min(100, v / summary.total * 100) : 0;
+    const groupHTML = group ? `<p class="group-card">กลุ่ม ${esc(group.no)} <strong>${esc(group.team)}</strong>:
+      ${group.members.map(m => esc(m.name) + (m.leader ? ' (หัวหน้า)' : '')).join(', ')}
+      ${group.folder ? `<br><button class="btn" style="margin-top:6px" data-open="${esc(group.folder)}">เปิดโฟลเดอร์กลุ่ม</button>` : ''}</p>` : '';
+
+    const cats = categories.map(c => {
+      const meta = [`น้ำหนัก ${c.weight}%`];
+      if (c.expected) meta.push(`ส่งแล้ว ${c.submitted}/${c.expected}`);
+      if (c.overdue) meta.push(`<span class="warn">เลยกำหนด ${c.overdue}</span>`);
+      const inner = c.items.length
+        ? `<ul class="items">${c.items.map(itemHTML).join('')}</ul>`
+        : '<p class="empty">ยังไม่มีรายการในหมวดนี้</p>';
+      const right = showScores ? `${fmtNum(c.earned)} / ${fmtNum(c.weight)}` : `${c.submitted}/${c.expected}`;
+      const fill = showScores ? (c.weight ? c.earned / c.weight : 0) : (c.expected ? c.submitted / c.expected : 0);
+      if (!showScores) meta.shift();   // ระยะที่ 1 ไม่แสดงน้ำหนัก
+      return `<details class="cat">
+        <summary>
+          <span class="cat-title">${esc(c.title)}</span>
+          <span class="cat-score num">${right}</span>
+          <span class="cat-meta num">${meta.join(', ') || '&nbsp;'}</span>
+          <span class="cat-chev"></span>
+          <span class="mini"><span style="width:${Math.min(100, fill * 100)}%"></span></span>
+        </summary>${inner}</details>`;
+    }).join('');
+
+    if (!showScores) {
+      return `
+      <section class="score-sum" aria-label="สรุปการส่งงาน">
+        <p>ส่งงานแล้ว</p>
+        <p class="big num" style="color:var(--ink)">${summary.submitted}<span style="font-size:1.25rem;color:var(--muted)"> / ${summary.expected} งาน</span></p>
+        <p class="num">${summary.overdue ? `<span class="warn">เลยกำหนดยังไม่ส่ง ${summary.overdue} งาน</span>` : 'ไม่มีงานค้างที่เลยกำหนด'}</p>
+        <div class="bar" aria-hidden="true"><span class="got" style="width:${summary.expected ? summary.submitted / summary.expected * 100 : 0}%"></span></div>
+        <p>คะแนนของแต่ละงานจะเปิดให้ดูหลังสอบกลางภาค</p>
+        ${groupHTML}
+      </section>
+      <div class="cats">${cats || '<p class="panel-loading">ยังไม่มีงานที่มอบหมาย</p>'}</div>`;
+    }
+    return `
+      <section class="score-sum" aria-label="คะแนนสะสม">
+        <p>คะแนนสะสม</p>
+        <p class="big num" style="color:var(--ink)">${fmtNum(summary.earned)}</p>
+        <p class="num">จาก ${fmtNum(summary.released)} คะแนนที่ประกาศแล้ว (เต็ม ${fmtNum(summary.total)})</p>
+        <div class="bar" aria-hidden="true">
+          <span class="rel" style="width:${pct(summary.released)}%"></span>
+          <span class="got" style="width:${pct(summary.earned)}%"></span>
+        </div>
+        <div class="bar-legend"><span><i style="background:var(--present)"></i>ได้แล้ว</span>
+          <span><i style="background:var(--pending);opacity:.45"></i>ประกาศแล้ว</span>
+          <span><i style="background:var(--track)"></i>ยังไม่ประกาศ</span></div>
+        ${groupHTML}
+      </section>
+      <div class="cats">${cats}</div>`;
+  }
+
+  function bindScoreActions(root) {
+    root.querySelectorAll('[data-open]').forEach(b => b.onclick = () => liff.openWindow({ url: b.dataset.open, external: true }));
+    root.querySelectorAll('[data-pdf]').forEach(b => b.onclick = () => openPdf(b.dataset.pdf, b.dataset.title));
+  }
+
+  // ===== PDF viewer (pdf.js) =====
+  function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve();
+    return new Promise((ok, fail) => {
+      const s = document.createElement('script');
+      s.src = PDFJS + 'pdf.min.js';
+      s.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; ok(); };
+      s.onerror = () => fail(new Error('โหลดตัวแสดง PDF ไม่สำเร็จ'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function openPdf(itemId, title) {
+    const v = document.createElement('div');
+    v.className = 'viewer';
+    v.innerHTML = `<div class="viewer-bar"><strong>${esc(itemId)} ${esc(title)}</strong>
+      <button class="btn" id="closePdf">ปิด</button></div>
+      <div class="viewer-pages" id="pdfPages"><p class="viewer-msg">กำลังโหลดไฟล์…</p></div>`;
+    document.body.appendChild(v);
+    document.body.style.overflow = 'hidden';
+    v.querySelector('#closePdf').onclick = () => { v.remove(); document.body.style.overflow = ''; };
+    const pages = v.querySelector('#pdfPages');
+    try {
+      const [data] = await Promise.all([api('viewSubmission', { item: itemId }), loadPdfJs()]);
+      if (!data.ok) { pages.innerHTML = `<p class="viewer-msg">${esc(data.message)}</p>`; return; }
+      const bytes = Uint8Array.from(atob(data.data), c => c.charCodeAt(0));
+      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      pages.innerHTML = '';
+      const width = pages.clientWidth - 24;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        if (!v.isConnected) return;
+        const page = await pdf.getPage(i);
+        const base = page.getViewport({ scale: 1 });
+        const scale = width / base.width * (window.devicePixelRatio || 1);
+        const vp = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width; canvas.height = vp.height;
+        canvas.setAttribute('aria-label', 'หน้า ' + i);
+        pages.appendChild(canvas);
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      }
+    } catch (err) {
+      pages.innerHTML = `<p class="viewer-msg">เปิดไฟล์ไม่สำเร็จ: ${esc(err.message)}</p>`;
+    }
+  }
+
+  // ===== เริ่มต้น =====
   (async () => {
     try {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
-      await load();
+      await reload();
     } catch (err) {
       showState('เปิดหน้าไม่สำเร็จ: ' + esc(err.message) + '<br>กรุณาเปิดจากลิงก์ใน LINE');
     }
