@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CA 2301 การเข้าเรียนและคะแนน</title>
+<title>การเข้าเรียนและการส่งงาน</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
     --bg: #E7EDEA; --paper: #FFFFFF; --ink: #1E2B33; --muted: #5D6D74; --line: #CBD5D1;
     --film: #24313A; --hole: #E7EDEA; --frame-empty: #3A4851; --on-film: #FFFFFF;
     --present: #2E7D5B; --late: #B87F0C; --absent: #B5443A; --leave: #6B63A8; --pending: #6F8087;
-    --track: #D5DEDA;
+    --track: #D5DEDA; --off: #8A979C;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -21,7 +21,7 @@
       --bg: #141B1F; --paper: #1D262B; --ink: #E6ECEA; --muted: #9AA9AF; --line: #2F3B41;
       --film: #0D1316; --hole: #141B1F; --frame-empty: #27333A; --on-film: #E6ECEA;
       --present: #3E9C72; --late: #C9922A; --absent: #C95A4E; --leave: #8A82C4; --pending: #7D8E95;
-      --track: #2A363C;
+      --track: #2A363C; --off: #55636A;
       color-scheme: dark;
     }
   }
@@ -60,7 +60,10 @@
   .tag { display: inline-block; padding: .15rem .65rem; border-radius: 6px; font-weight: 600; font-size: .9375rem; color: #fff; }
   .st-present { background: var(--present); } .st-late { background: var(--late); }
   .st-absent { background: var(--absent); } .st-leave { background: var(--leave); }
+  .st-off { background: var(--off); } .txt-off { color: var(--muted); }
+  .frame.st-off { background: repeating-linear-gradient(-45deg, var(--frame-empty) 0 4px, var(--off) 4px 8px); }
   .st-pending { background: var(--pending); }
+  .st-resub { background: #C2611F; }
 
   /* แถบฟิล์ม */
   .strip-head { display: flex; justify-content: space-between; align-items: baseline; margin: 28px 0 2px; }
@@ -171,9 +174,11 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const thDate = (d, opt) => new Date(d + 'T12:00:00+07:00').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', ...opt });
   const thDateTime = s => { const [d, t] = s.split(' '); return thDate(d, { day: 'numeric', month: 'short' }) + ' ' + t + ' น.'; };
+  const thDue = s => { const [d, t] = s.split(' '); return thDate(d, { weekday: 'short', day: 'numeric', month: 'short' }) + (t ? ' ' + t + ' น.' : ''); };
   const fmtNum = n => (Math.round(n * 100) / 100).toLocaleString('th-TH', { maximumFractionDigits: 2 });
   const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
   const cls = s => s === 'มา' ? 'present' : s === 'สาย' ? 'late'
+                 : s === 'งดเรียน' ? 'off'
                  : String(s).indexOf('ลา') === 0 ? 'leave'
                  : s === 'รอเช็คชื่อ' ? 'pending' : 'absent';
 
@@ -234,7 +239,7 @@
     const uidLine = data.uid ? `<p class="uid">UID ของบัญชีนี้: ${esc(data.uid)}</p>` : '';
     if (data.status === 'auth') { showState(esc(data.message)); return false; }
     if (data.status === 'not_registered') {
-      showState('บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับรายวิชา CA 2301', { href: REGISTER_URL, text: 'ลงทะเบียนบัญชี LINE' }, uidLine);
+      showState('บัญชี LINE นี้ยังไม่ได้ลงทะเบียนกับรายวิชานี้', { href: REGISTER_URL, text: 'ลงทะเบียนบัญชี LINE' }, uidLine);
       return false;
     }
     if (data.status === 'not_enrolled') { showState(esc(data.message), null, uidLine); return false; }
@@ -255,9 +260,17 @@
       if (!handleStatus(data)) return;
       attendance = data;
       showScores = !!data.showScores;
+      if (data.course && data.course.code) document.title = data.course.code + ' การเข้าเรียนและการส่งงาน';
       renderShell();
     } catch (err) { showState('โหลดข้อมูลไม่สำเร็จ: ' + esc(err.message)); }
   }
+
+  // ชื่อวิชาจากแท็บ Settings (ส่งมากับข้อมูลการเข้าเรียน)
+  function courseText() {
+    const c = attendance && attendance.course;
+    return c ? [c.code, c.name].filter(Boolean).join(' ') : '';
+  }
+  const todayStr = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
 
   // ===== โครงหน้า + แท็บ =====
   function renderShell() {
@@ -265,7 +278,7 @@
     app.innerHTML = `
       ${adminBar(attendance.previewOf)}
       <header>
-        <p>CA 2301 การผลิตสื่อวีดิโอสำหรับแพลตฟอร์มออนไลน์</p>
+        <p>${esc(courseText())}</p>
         <h1>${esc(st.name)}</h1>
         <p class="num">${esc(st.id)}, ${esc(st.section)}</p>
       </header>
@@ -312,6 +325,11 @@
     let slate;
     if (!current) {
       slate = `<p class="when">ยังไม่ถึงสัปดาห์แรกของการเรียน</p><p class="time none">--:--</p>`;
+    } else if (current.status === 'งดเรียน') {
+      slate = `<p class="when">สัปดาห์ที่ ${current.week}, ${thDate(current.date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+               <p class="time none">งดเรียน</p>
+               <span class="tag st-off">ไม่นับในการเข้าเรียน</span>
+               ${current.note ? `<p class="note">${esc(current.note)}</p>` : ''}`;
     } else {
       const note = current.status === 'รอเช็คชื่อ'
         ? `คาบเริ่ม ${current.start} น. สแกนบัตรที่หน้าห้องเพื่อเช็คชื่อ`
@@ -328,14 +346,16 @@
       const title = w.status === 'future' ? 'ยังไม่ถึง' : w.status;
       return `<div class="frame ${c} ${now}" title="สัปดาห์ที่ ${w.week}: ${esc(title)}"><span class="num">${w.week}</span></div>`;
     }).join('');
-    const rows = weeks.filter(w => w.status !== 'future').reverse().map(w => `
+    const today = todayStr();
+    const rows = weeks.filter(w => w.status !== 'future' && w.date <= today).reverse().map(w => `
       <li>
         <span class="wk">สัปดาห์ ${w.week}</span>
         <span class="d">${thDate(w.date, { day: 'numeric', month: 'short' })}
-          <small class="num">${w.checkin ? 'เช็คชื่อ ' + w.checkin + ' น.' : 'ไม่มีเวลาเช็คชื่อ'}</small></span>
+          <small class="num">${w.status === 'งดเรียน' ? (esc(w.note) || 'ไม่นับในการเข้าเรียน')
+            : (w.checkin ? 'เช็คชื่อ ' + w.checkin + ' น.' : 'ไม่มีเวลาเช็คชื่อ') + (w.makeup ? ' · คาบชดเชย' : '')}</small></span>
         <span class="s txt-${cls(w.status)}">${esc(w.status)}</span>
       </li>`).join('');
-    const leaveText = summary.leave ? `, ลา ${summary.leave} (นับเป็นขาด)` : '';
+    const leaveText = (summary.leave ? `, ลา ${summary.leave} (นับเป็นขาด)` : '') + (summary.cancelled ? `, งดเรียน ${summary.cancelled} สัปดาห์ (ไม่นับ)` : '');
     return `
       <section class="slate" aria-label="การเช็คชื่อสัปดาห์นี้">
         <div class="slate-bar"></div><div class="slate-body">${slate}</div>
@@ -343,12 +363,12 @@
       <section aria-label="สัดส่วนการเข้าเรียน">
         <div class="strip-head"><h2>เข้าเรียนถึงสัปดาห์นี้</h2>
           <span class="pct num">${summary.percent == null ? '–' : summary.percent + '%'}</span></div>
-        <p class="counts num">มา ${summary.present}, สาย ${summary.late}, ขาด ${summary.absent}${leaveText} จากที่เรียนไปแล้ว ${summary.held} ครั้ง (ทั้งเทอม ${summary.total} สัปดาห์)</p>
+        <p class="counts num">มา ${summary.present}, สาย ${summary.late}, ขาด ${summary.absent}${leaveText} จากที่เรียนไปแล้ว ${summary.held} ครั้ง (ทั้งเทอม ${summary.total} คาบ)</p>
         <div class="strip"><div class="holes"></div><div class="frames">${frames}</div><div class="holes"></div></div>
         <ul class="legend">
           <li><i style="background:var(--present)"></i>มา</li><li><i style="background:var(--late)"></i>สาย</li>
           <li><i style="background:var(--absent)"></i>ขาด</li><li><i style="background:var(--leave)"></i>ลา</li>
-          <li><i style="background:var(--frame-empty)"></i>ยังไม่ถึง</li>
+          <li><i style="background:var(--off)"></i>งดเรียน</li><li><i style="background:var(--frame-empty)"></i>ยังไม่ถึง</li>
         </ul>
       </section>
       ${rows ? `<section class="history"><h2>รายสัปดาห์</h2><ul>${rows}</ul></section>` : ''}`;
@@ -360,10 +380,15 @@
     let chip = '', lines = [];
     const sub = it.submission;
     if (it.type !== 'exam') {
+      const dueLine = it.due ? 'กำหนดส่ง' + (it.dueSection ? ' (' + esc(it.dueSection) + ')' : '') + ' ' + thDue(it.due)
+        + (it.dueNote ? ` <span style="color:var(--muted)">· ${esc(it.dueNote)}</span>` : '') : '';
       if (sub) {
-        chip = sub.late ? '<span class="chip st-late">ส่งช้า</span>' : '<span class="chip st-present">ส่งแล้ว</span>';
-        lines.push(`${chip}ส่งเมื่อ ${thDateTime(sub.at)}`);
-        lines.push(`ผู้ส่ง ${esc(sub.byName)} (${esc(sub.by)})`);
+        const chips = [sub.late ? '<span class="chip st-late">ส่งช้า</span>' : '<span class="chip st-present">ส่งแล้ว</span>'];
+        if (sub.review === 'resubmitted') chips.push('<span class="chip st-resub">ส่งแก้ไข รอตรวจ</span>');
+        else if (sub.review === 'graded') chips.push('<span class="chip st-leave">ตรวจแล้ว</span>');
+        lines.push(chips.join('') + (sub.count > 1 ? `ส่ง ${sub.count} ครั้ง ล่าสุด ${thDateTime(sub.at)}` : `ส่งเมื่อ ${thDateTime(sub.at)}`));
+        if (sub.count > 1) lines.push(`ส่งครั้งแรก ${thDateTime(sub.firstAt)}${sub.late ? ' (หลังกำหนด)' : ''}`);
+        lines.push(`ผู้ส่ง${sub.count > 1 ? 'ล่าสุด' : ''} ${esc(sub.byName)} (${esc(sub.by)})`);
         if (sub.choice) lines.push(`หัวข้อที่เลือกในฟอร์ม: ${esc(sub.choice)}`);
         if (sub.file) {
           lines.push(sub.file.error
@@ -373,12 +398,13 @@
         if (sub.url) {
           lines.push(`ลิงก์งาน: <span style="word-break:break-all">${esc(sub.url)}</span>`);
         }
+        if (dueLine) lines.push(dueLine);
       } else if (it.overdue) {
         lines.push('<span class="chip st-absent">เลยกำหนด</span>ยังไม่พบงานที่ส่ง');
+        if (dueLine) lines.push(dueLine);
       } else {
-        lines.push('<span class="chip st-pending">ยังไม่ส่ง</span>' + (it.due ? 'กำหนดส่ง ' + thDate(it.due, { day: 'numeric', month: 'short' }) : ''));
+        lines.push('<span class="chip st-pending">ยังไม่ส่ง</span>' + dueLine);
       }
-      if (sub && it.due) lines.push('กำหนดส่ง ' + thDate(it.due, { day: 'numeric', month: 'short', year: 'numeric' }));
     }
 
     // คะแนน (ระยะที่ 2 เท่านั้น)
@@ -388,6 +414,7 @@
     } else if (it.released && it.raw !== null) {
       score = `${fmtNum(it.earned)}<small> / ${fmtNum(it.points)}</small>`;
       lines.push(`ผลตรวจ ${it.grade ? 'เกรด ' + esc(it.grade) + ', ' : ''}${fmtNum(it.raw)}/${fmtNum(it.max)}`);
+      if (it.note) lines.push(`ความเห็นผู้สอน: ${esc(it.note)}`);
     } else if (it.released) {
       score = '<small>–</small>';
       lines.push('ยังไม่มีคะแนนของงานนี้');
