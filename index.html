@@ -64,6 +64,7 @@
   .frame.st-off { background: repeating-linear-gradient(-45deg, var(--frame-empty) 0 4px, var(--off) 4px 8px); }
   .st-pending { background: var(--pending); }
   .st-resub { background: #C2611F; }
+  .late-note { color: var(--late); font-weight: 600; }
 
   /* แถบฟิล์ม */
   .strip-head { display: flex; justify-content: space-between; align-items: baseline; margin: 28px 0 2px; }
@@ -382,7 +383,15 @@
     if (it.type !== 'exam') {
       const dueLine = it.due ? 'กำหนดส่ง' + (it.dueSection ? ' (' + esc(it.dueSection) + ')' : '') + ' ' + thDue(it.due)
         + (it.dueNote ? ` <span style="color:var(--muted)">· ${esc(it.dueNote)}</span>` : '') : '';
-      if (sub) {
+      // ส่งช้า: ผู้สอนพิจารณาระดับการหัก
+      const lateText = it.late ? (it.late.pending ? 'ส่งช้า · รอผู้สอนพิจารณา'
+        : +it.late.level === 0 ? 'ส่งช้า · ไม่หักคะแนน' : `ส่งช้า · หัก ${it.late.pct}% ของคะแนนที่ได้`) : '';
+      if (sub && it.type === 'quiz') {
+        lines.push((sub.late ? '<span class="chip st-late">ทำหลังกำหนด</span>' : '<span class="chip st-present">ทำแล้ว</span>')
+          + (sub.count > 1 ? `ทำ ${sub.count} ครั้ง, นับ${sub.retake ? 'ครั้งที่ดีที่สุด' : 'ครั้งแรก'} ${thDateTime(sub.at)}` : `ทำเมื่อ ${thDateTime(sub.at)}`));
+        if (lateText) lines.push(`<span class="late-note">${lateText}</span>`);
+        if (dueLine) lines.push(dueLine.replace('กำหนดส่ง', 'กำหนดทำ'));
+      } else if (sub) {
         const chips = [sub.late ? '<span class="chip st-late">ส่งช้า</span>' : '<span class="chip st-present">ส่งแล้ว</span>'];
         if (sub.review === 'resubmitted') chips.push('<span class="chip st-resub">ส่งแก้ไข รอตรวจ</span>');
         else if (sub.review === 'graded') chips.push('<span class="chip st-leave">ตรวจแล้ว</span>');
@@ -398,12 +407,14 @@
         if (sub.url) {
           lines.push(`ลิงก์งาน: <span style="word-break:break-all">${esc(sub.url)}</span>`);
         }
+        if (lateText) lines.push(`<span class="late-note">${lateText}</span>`);
         if (dueLine) lines.push(dueLine);
       } else if (it.overdue) {
-        lines.push('<span class="chip st-absent">เลยกำหนด</span>ยังไม่พบงานที่ส่ง');
+        lines.push('<span class="chip st-absent">เลยกำหนด</span>' + (it.type === 'quiz' ? 'ยังไม่พบการทำ Quiz' : 'ยังไม่พบงานที่ส่ง'));
         if (dueLine) lines.push(dueLine);
       } else {
-        lines.push('<span class="chip st-pending">ยังไม่ส่ง</span>' + dueLine);
+        lines.push(it.type === 'quiz' ? '<span class="chip st-pending">ยังไม่ทำ</span>' + dueLine.replace('กำหนดส่ง', 'กำหนดทำ')
+                                      : '<span class="chip st-pending">ยังไม่ส่ง</span>' + dueLine);
       }
     }
 
@@ -413,7 +424,8 @@
       // ระยะที่ 1: ไม่แสดงคะแนน
     } else if (it.released && it.raw !== null) {
       score = `${fmtNum(it.earned)}<small> / ${fmtNum(it.points)}</small>`;
-      lines.push(`ผลตรวจ ${it.grade ? 'เกรด ' + esc(it.grade) + ', ' : ''}${fmtNum(it.raw)}/${fmtNum(it.max)}`);
+      const after = it.final !== null && it.final !== it.raw ? ` → หักส่งช้าเหลือ ${fmtNum(it.final)}` : '';
+      lines.push(`${it.scoring === 'grade' ? 'ผลตรวจ' : 'คะแนน'} ${it.grade ? 'เกรด ' + esc(it.grade) + ', ' : ''}${fmtNum(it.raw)}/${fmtNum(it.max)}${after}`);
       if (it.note) lines.push(`ความเห็นผู้สอน: ${esc(it.note)}`);
     } else if (it.released) {
       score = '<small>–</small>';
