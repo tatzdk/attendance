@@ -128,7 +128,10 @@
   .item-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
   .item-title { font-weight: 600; }
   .item-title small { color: var(--muted); font-weight: 500; margin-right: 4px; }
-  .item-score { font-weight: 700; white-space: nowrap; }
+  .item-score { font-weight: 700; white-space: nowrap; display: flex; align-items: baseline; gap: 6px; }
+  .item-score small { font-weight: 500; color: var(--muted); }
+  .gbadge { display: inline-block; min-width: 2.1em; text-align: center; padding: .05rem .45rem; border-radius: 6px; background: var(--ink); color: #fff; font-size: .8125rem; }
+  .item-score .wait { font-weight: 500; font-size: .75rem; color: var(--muted); }
   .item-line { margin: 3px 0 0; font-size: .8125rem; color: var(--muted); }
   .chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .05rem .5rem; border-radius: 5px; color: #fff; margin-right: 6px; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
@@ -423,15 +426,18 @@
     if (!showScores) {
       // ระยะที่ 1: ไม่แสดงคะแนน
     } else if (it.released && it.raw !== null) {
-      score = `${fmtNum(it.earned)}<small> / ${fmtNum(it.points)}</small>`;
-      const after = it.final !== null && it.final !== it.raw ? ` → หักส่งช้าเหลือ ${fmtNum(it.final)}` : '';
-      lines.push(`${it.scoring === 'grade' ? 'ผลตรวจ' : 'คะแนน'} ${it.grade ? 'เกรด ' + esc(it.grade) + ', ' : ''}${fmtNum(it.raw)}/${fmtNum(it.max)}${after}`);
+      // ชิดขวาบน: เกรด + คะแนนดิบของชิ้นงาน (หลังหักส่งช้า)
+      const shown = it.final !== null ? it.final : it.raw;
+      score = (it.grade ? `<span class="gbadge">${esc(it.grade)}</span>` : '') + `${fmtNum(shown)}<small>/${fmtNum(it.max)}</small>`;
+      if (it.final !== null && it.final !== it.raw) lines.push(`คะแนนก่อนหัก ${fmtNum(it.raw)}/${fmtNum(it.max)}, หักส่งช้า ${it.late ? it.late.pct : ''}% เหลือ ${fmtNum(it.final)}`);
+      if (it.earned !== null && it.points !== null) lines.push(`คิดเป็น ${fmtNum(it.earned)} จาก ${fmtNum(it.points)} คะแนนของหมวด`);
       if (it.note) lines.push(`ความเห็นผู้สอน: ${esc(it.note)}`);
     } else if (it.released) {
       score = '<small>–</small>';
       lines.push('ยังไม่มีคะแนนของงานนี้');
     } else {
-      lines.push('รอประกาศคะแนน (' + fmtNum(it.points) + ' คะแนน)');
+      score = '<span class="wait">รอประกาศ</span>';
+      lines.push(it.points !== null ? 'รอประกาศคะแนน (' + fmtNum(it.points) + ' คะแนน)' : 'รอประกาศคะแนน');
     }
 
     // ปุ่ม
@@ -449,7 +455,7 @@
     </li>`;
   }
 
-  function scoresHTML({ summary, categories, group }) {
+  function scoresHTML({ summary, categories, group, showTotals }) {
     if (!showScores) {
       // ระยะที่ 1: เฉพาะงานที่ต้องส่ง (ไม่รวมงานสอบ) และไม่มีตัวเลขคะแนน
       categories = categories
@@ -468,9 +474,11 @@
       const inner = c.items.length
         ? `<ul class="items">${c.items.map(itemHTML).join('')}</ul>`
         : '<p class="empty">ยังไม่มีรายการในหมวดนี้</p>';
-      const right = showScores ? `${fmtNum(c.earned)} / ${fmtNum(c.weight)}` : `${c.submitted}/${c.expected}`;
-      const fill = showScores ? (c.weight ? c.earned / c.weight : 0) : (c.expected ? c.submitted / c.expected : 0);
-      if (!showScores) meta.shift();   // ระยะที่ 1 ไม่แสดงน้ำหนัก
+      // คะแนนหมวด: แสดงเมื่อหมวดนี้เปิดคะแนนรวม (show_total) ไม่งั้นแสดงจำนวนที่ส่ง
+      const catTotal = showScores && c.earned !== null && c.earned !== undefined;
+      const right = catTotal ? `${fmtNum(c.earned)} / ${fmtNum(c.weight)}` : c.expected ? `${c.submitted}/${c.expected}` : '';
+      const fill = catTotal ? (c.weight ? c.earned / c.weight : 0) : (c.expected ? c.submitted / c.expected : 0);
+      if (!catTotal) meta.shift();     // ไม่แสดงคะแนนหมวด = ไม่แสดงน้ำหนัก
       return `<details class="cat">
         <summary>
           <span class="cat-title">${esc(c.title)}</span>
@@ -481,14 +489,14 @@
         </summary>${inner}</details>`;
     }).join('');
 
-    if (!showScores) {
+    if (!showScores || !showTotals) {
       return `
       <section class="score-sum" aria-label="สรุปการส่งงาน">
         <p>ส่งงานแล้ว</p>
         <p class="big num" style="color:var(--ink)">${summary.submitted}<span style="font-size:1.25rem;color:var(--muted)"> / ${summary.expected} งาน</span></p>
         <p class="num">${summary.overdue ? `<span class="warn">เลยกำหนดยังไม่ส่ง ${summary.overdue} งาน</span>` : 'ไม่มีงานค้างที่เลยกำหนด'}</p>
         <div class="bar" aria-hidden="true"><span class="got" style="width:${summary.expected ? summary.submitted / summary.expected * 100 : 0}%"></span></div>
-        <p>คะแนนของแต่ละงานจะเปิดให้ดูหลังสอบกลางภาค</p>
+        <p>${showScores ? 'ดูคะแนนของแต่ละงานได้ในรายการด้านล่าง' : 'คะแนนของแต่ละงานจะเปิดให้ดูหลังสอบกลางภาค'}</p>
         ${groupHTML}
       </section>
       <div class="cats">${cats || '<p class="panel-loading">ยังไม่มีงานที่มอบหมาย</p>'}</div>`;
