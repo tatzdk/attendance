@@ -170,7 +170,7 @@
 <script>
   // ===== ตั้งค่า =====
   const LIFF_ID = '2012469188-T7oFRrPY';
-  const API_URL = 'https://script.google.com/macros/s/AKfycbzyjtoTRlxaJvcehD_FE7Yt9olvxc5kEIvrKeIGv75LKRpnqyNqfXQyGKS8lEUuAe2L/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbz68hEIVpLadpBKbWlVkottCIKiGoZKu411Lek672A3RAu0smjJANioYfXqNRNY9nW9/exec';
   const REGISTER_URL = 'https://liff.line.me/2012469188-T7oFRrPY';
   const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 
@@ -379,7 +379,7 @@
   }
 
   // ===== แท็บคะแนน =====
-  function itemHTML(it) {
+  function itemHTML(it, catTotal) {
     // สถานะการส่ง
     let chip = '', lines = [];
     const sub = it.submission;
@@ -430,14 +430,14 @@
       const shown = it.final !== null ? it.final : it.raw;
       score = (it.grade ? `<span class="gbadge">${esc(it.grade)}</span>` : '') + `${fmtNum(shown)}<small>/${fmtNum(it.max)}</small>`;
       if (it.final !== null && it.final !== it.raw) lines.push(`คะแนนก่อนหัก ${fmtNum(it.raw)}/${fmtNum(it.max)}, หักส่งช้า ${it.late ? it.late.pct : ''}% เหลือ ${fmtNum(it.final)}`);
-      if (it.earned !== null && it.points !== null) lines.push(`คิดเป็น ${fmtNum(it.earned)} จาก ${fmtNum(it.points)} คะแนนของหมวด`);
+      if (catTotal && it.earned !== null && it.points !== null) lines.push(`คิดเป็น ${fmtNum(it.earned)} จาก ${fmtNum(it.points)} คะแนนของหมวด`);
       if (it.note) lines.push(`ความเห็นผู้สอน: ${esc(it.note)}`);
     } else if (it.released) {
       score = '<small>–</small>';
       lines.push('ยังไม่มีคะแนนของงานนี้');
     } else {
       score = '<span class="wait">รอประกาศ</span>';
-      lines.push(it.points !== null ? 'รอประกาศคะแนน (' + fmtNum(it.points) + ' คะแนน)' : 'รอประกาศคะแนน');
+      lines.push(catTotal && it.points !== null ? 'รอประกาศคะแนน (' + fmtNum(it.points) + ' คะแนน)' : 'รอประกาศคะแนน');
     }
 
     // ปุ่ม
@@ -471,11 +471,11 @@
       const meta = [`น้ำหนัก ${c.weight}%`];
       if (c.expected) meta.push(`ส่งแล้ว ${c.submitted}/${c.expected}`);
       if (c.overdue) meta.push(`<span class="warn">เลยกำหนด ${c.overdue}</span>`);
+      // คะแนนหมวด: แสดงเฉพาะเมื่อเซิร์ฟเวอร์บอกว่าหมวดนี้เปิด (showTotal = true) ไม่งั้นแสดงจำนวนชิ้นที่ส่ง
+      const catTotal = showScores && c.showTotal === true && c.earned !== null && c.earned !== undefined;
       const inner = c.items.length
-        ? `<ul class="items">${c.items.map(itemHTML).join('')}</ul>`
+        ? `<ul class="items">${c.items.map(it => itemHTML(it, catTotal)).join('')}</ul>`
         : '<p class="empty">ยังไม่มีรายการในหมวดนี้</p>';
-      // คะแนนหมวด: แสดงเมื่อหมวดนี้เปิดคะแนนรวม (show_total) ไม่งั้นแสดงจำนวนที่ส่ง
-      const catTotal = showScores && c.earned !== null && c.earned !== undefined;
       const right = catTotal ? `${fmtNum(c.earned)} / ${fmtNum(c.weight)}` : c.expected ? `${c.submitted}/${c.expected}` : '';
       const fill = catTotal ? (c.weight ? c.earned / c.weight : 0) : (c.expected ? c.submitted / c.expected : 0);
       if (!catTotal) meta.shift();     // ไม่แสดงคะแนนหมวด = ไม่แสดงน้ำหนัก
@@ -489,7 +489,7 @@
         </summary>${inner}</details>`;
     }).join('');
 
-    if (!showScores || !showTotals) {
+    if (!showScores || showTotals !== true) {
       return `
       <section class="score-sum" aria-label="สรุปการส่งงาน">
         <p>ส่งงานแล้ว</p>
