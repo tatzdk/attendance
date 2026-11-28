@@ -425,11 +425,12 @@
     let score = '';
     if (!showScores) {
       // ระยะที่ 1: ไม่แสดงคะแนน
-    } else if (it.released && it.raw !== null) {
-      // ชิดขวาบน: เกรด + คะแนนดิบของชิ้นงาน (หลังหักส่งช้า)
+    } else if (it.released && (it.raw !== null || it.grade)) {
+      // ชิดขวาบน: เกรด และ/หรือ คะแนนดิบของชิ้นงาน (หลังหักส่งช้า) ตามคอลัมน์ display
       const shown = it.final !== null ? it.final : it.raw;
-      score = (it.grade ? `<span class="gbadge">${esc(it.grade)}</span>` : '') + `${fmtNum(shown)}<small>/${fmtNum(it.max)}</small>`;
-      if (it.final !== null && it.final !== it.raw) lines.push(`คะแนนก่อนหัก ${fmtNum(it.raw)}/${fmtNum(it.max)}, หักส่งช้า ${it.late ? it.late.pct : ''}% เหลือ ${fmtNum(it.final)}`);
+      score = (it.grade ? `<span class="gbadge">${esc(it.grade)}</span>` : '')
+            + (shown !== null ? `${fmtNum(shown)}<small>/${fmtNum(it.max)}</small>` : '');
+      if (it.raw !== null && it.final !== null && it.final !== it.raw) lines.push(`คะแนนก่อนหัก ${fmtNum(it.raw)}/${fmtNum(it.max)}, หักส่งช้า ${it.late ? it.late.pct : ''}% เหลือ ${fmtNum(it.final)}`);
       if (catTotal && it.earned !== null && it.points !== null) lines.push(`คิดเป็น ${fmtNum(it.earned)} จาก ${fmtNum(it.points)} คะแนนของหมวด`);
       if (it.note) lines.push(`ความเห็นผู้สอน: ${esc(it.note)}`);
     } else if (it.released) {
